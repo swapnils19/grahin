@@ -1,6 +1,6 @@
-# AI RAG Application
+# Grahin
 
-A production-ready AI-powered RAG (Retrieval-Augmented Generation) application with user authentication and multi-tenant file management.
+An AI-powered RAG (Retrieval-Augmented Generation) search application with user authentication and multi-tenant file management.
 
 ## Features
 
