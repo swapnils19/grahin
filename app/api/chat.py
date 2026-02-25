@@ -1,4 +1,5 @@
 import uuid
+import pdb
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
@@ -8,7 +9,7 @@ from app.models.user import User
 from app.models.conversation import Conversation, Message
 from app.models.file import File
 from app.schemas.conversation import (
-    ChatRequest, ChatResponse, ConversationCreate, 
+    ChatRequest, ChatResponse, ConversationCreate,
     ConversationResponse, ConversationUpdate
 )
 from app.api.deps import get_current_active_user
@@ -23,13 +24,15 @@ def chat(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
+    pdb.set_trace()  # Debug FastAPI endpoint
+
     # Get or create conversation
     if request.conversation_id:
         conversation = db.query(Conversation).filter(
             Conversation.id == request.conversation_id,
             Conversation.user_id == current_user.id
         ).first()
-        
+
         if not conversation:
             raise HTTPException(status_code=404, detail="Conversation not found")
     else:
@@ -41,7 +44,7 @@ def chat(
         db.add(conversation)
         db.commit()
         db.refresh(conversation)
-    
+
     # Save user message
     user_message = Message(
         conversation_id=conversation.id,
@@ -50,7 +53,7 @@ def chat(
         related_files=request.related_files or []
     )
     db.add(user_message)
-    
+
     # Generate AI response using RAG
     try:
         ai_response = rag_service.generate_response(
@@ -63,7 +66,7 @@ def chat(
             status_code=500,
             detail=f"Error generating response: {str(e)}"
         )
-    
+
     # Save AI message
     ai_message = Message(
         conversation_id=conversation.id,
@@ -71,14 +74,14 @@ def chat(
         content=ai_response
     )
     db.add(ai_message)
-    
+
     # Update conversation timestamp
     from datetime import datetime
     conversation.updated_at = datetime.utcnow()
-    
+
     db.commit()
     db.refresh(ai_message)
-    
+
     return ChatResponse(
         message=ai_response,
         conversation_id=conversation.id,
@@ -94,7 +97,7 @@ def list_conversations(
     conversations = db.query(Conversation).filter(
         Conversation.user_id == current_user.id
     ).order_by(Conversation.updated_at.desc()).all()
-    
+
     return conversations
 
 
@@ -108,10 +111,10 @@ def get_conversation(
         Conversation.id == conversation_id,
         Conversation.user_id == current_user.id
     ).first()
-    
+
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    
+
     return conversation
 
 
@@ -126,16 +129,16 @@ def update_conversation(
         Conversation.id == conversation_id,
         Conversation.user_id == current_user.id
     ).first()
-    
+
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    
+
     if conversation_update.title is not None:
         conversation.title = conversation_update.title
-    
+
     db.commit()
     db.refresh(conversation)
-    
+
     return conversation
 
 
@@ -149,13 +152,13 @@ def delete_conversation(
         Conversation.id == conversation_id,
         Conversation.user_id == current_user.id
     ).first()
-    
+
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    
+
     db.delete(conversation)
     db.commit()
-    
+
     return {"message": "Conversation deleted successfully"}
 
 
