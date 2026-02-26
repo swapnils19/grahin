@@ -26,7 +26,8 @@ An AI-powered RAG (Retrieval-Augmented Generation) search application with user 
 
 - Docker and Docker Compose
 - Claude API key
-- Python 3.11+ (for local development)
+- Python 3.12+ (for local development)
+- Poetry (for local development)
 
 ### Environment Setup
 
@@ -54,21 +55,32 @@ docker-compose up --build
 
 ### Local Development
 
-1. Install dependencies:
+1. Install Poetry (if not already installed):
 ```bash
-pip install -r requirements.txt
+curl -sSL https://install.python-poetry.org | python3 -
 ```
 
-2. Set up PostgreSQL and Redis instances
-
-3. Run database migrations:
+2. Install dependencies:
 ```bash
-alembic upgrade head
+poetry install
 ```
 
-4. Start the application:
+3. Set up PostgreSQL and Redis instances
+
+4. Run database migrations:
 ```bash
-uvicorn app.main:app --reload
+poetry run alembic upgrade head
+```
+
+5. Start the application:
+```bash
+poetry run uvicorn app.main:app --reload
+```
+
+**Alternative: Use the setup script**
+```bash
+./scripts/setup_dev.sh
+poetry run python scripts/start_dev.py
 ```
 
 ## API Endpoints
@@ -165,19 +177,19 @@ curl -X POST "http://localhost/api/chat/chat" \
 
 Create new migration:
 ```bash
-alembic revision --autogenerate -m "Add new feature"
+poetry run alembic revision --autogenerate -m "Add new feature"
 ```
 
 Apply migrations:
 ```bash
-alembic upgrade head
+poetry run alembic upgrade head
 ```
 
 ### Testing
 
 Run tests:
 ```bash
-pytest
+poetry run pytest
 ```
 
 ## Production Deployment

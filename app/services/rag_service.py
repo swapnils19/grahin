@@ -1,5 +1,6 @@
 import uuid
 import pdb
+import os
 from typing import List, Optional, Dict, Any
 from pathlib import Path
 
@@ -7,7 +8,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.chains import RetrievalQA
-from langchain_community.llms import Anthropic
+from langchain_anthropic import ChatAnthropic
 from langchain.prompts import PromptTemplate
 from langchain.schema import Document
 
@@ -19,6 +20,12 @@ from app.models.user import User
 
 class RAGService:
     def __init__(self):
+        # Clear proxy environment variables to prevent conflicts
+        proxy_vars = ['http_proxy', 'https_proxy', 'HTTP_PROXY', 'HTTPS_PROXY']
+        for var in proxy_vars:
+            if var in os.environ:
+                del os.environ[var]
+
         # Initialize embeddings
         self.embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2"
@@ -30,9 +37,9 @@ class RAGService:
 
         # pdb.set_trace()
         # Initialize Claude LLM
-        self.llm = Anthropic(
-            anthropic_api_key=settings.claude_api_key,
-            model="claude-3-5-sonnet-20241022"
+        self.llm = ChatAnthropic(
+            model="claude-3-5-sonnet-20241022",
+            api_key=settings.claude_api_key
         )
 
         # Create prompt template
@@ -120,28 +127,27 @@ class RAGService:
 
     def generate_response(self, user_id: uuid.UUID, query: str, file_ids: Optional[List[uuid.UUID]] = None) -> str:
         """Generate response using RAG"""
-        pdb.set_trace()  # Debug breakpoint here
+        # Search for relevant documents
+        search_results = self.search_documents(user_id, query, k=5)
 
-        vector_store = self.get_user_vector_store(user_id)
+        # Build context from search results
+        context = "\n\n".join([result["content"] for result in search_results])
 
-        # Create retriever
-        retriever = vector_store.as_retriever(
-            search_kwargs={"k": 5}
-        )
+        # Create prompt with context
+        prompt = f"""Use the following pieces of context to answer the question at the end.
+If you don't know the answer from the context, just say that you don't know.
+Do not try to make up an answer. Keep the answer concise and relevant.
 
-        # Create QA chain
-        qa_chain = RetrievalQA.from_chain_type(
-            llm=self.llm,
-            chain_type="stuff",
-            retriever=retriever,
-            chain_type_kwargs={"prompt": self.prompt_template},
-            return_source_documents=True
-        )
+Context: {context}
 
-        # Generate response
-        result = qa_chain({"query": query})
+Question: {query}
 
-        return result["result"]
+Answer:"""
+
+        # Generate response using LangChain ChatAnthropic
+        response = self.llm.invoke(prompt)
+
+        return response.content
 
     def get_user_files_summary(self, user_id: uuid.UUID) -> Dict[str, Any]:
         """Get summary of user's uploaded files"""
